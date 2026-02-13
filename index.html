@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Be My Valentine?</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 320px;
+            background: #ffe6ec;
+            overflow-x: hidden; /* prevent accidental horizontal scroll from fixed elements */
+        }
+        h1 {
+            font-size: 35px;
+            color: #d6336c;
+            position: relative;
+            z-index: 2; /* above decorative hearts */
+        }
+
+        /* Center the buttons and add a gap */
+        #buttons {
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px; /* ✅ adds space between buttons */
+            position: relative;
+            z-index: 2; /* above decorative hearts */
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            transition: background 120ms ease;
+        }
+        #yes {
+            background: #ff6699;
+            color: white;
+        }
+        #yes:hover {
+            background: #ff4f88;
+        }
+
+        /* Default 'No' is in normal flow; when dodging, it becomes fixed */
+        #no {
+            background: #ffc2d1;
+            color: #8a3a52;
+            position: relative; /* stays aligned initially */
+        }
+        #no.dodging {
+            position: fixed; /* ✅ moves relative to viewport, easier to keep on-screen */
+            z-index: 9999;
+        }
+
+        /* ===========================
+           FLOATING HEARTS DECOR LAYER
+           =========================== */
+        .hearts-layer {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: 0;            /* behind heading/buttons */
+            pointer-events: none;  /* decorative only */
+        }
+
+        .heart {
+            position: absolute;
+            bottom: -12vh;                  /* start below the viewport */
+            display: inline-block;
+            font-size: 28px;                /* overridden per-heart */
+            line-height: 1;
+            /* Gradient fill with light shimmer */
+            background: linear-gradient(
+                180deg,
+                rgba(255,255,255,0.20) 0%,
+                rgba(255,255,255,0.12) 100%
+            );
+            background-size: 200% 200%;     /* for a soft shimmer movement */
+            background-position: 50% 0%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;             /* ensure text color doesn't show */
+            filter: blur(0.2px);            /* slightly soften edges */
+            transform: translateY(0) translateX(0) rotate(0deg);
+            will-change: transform, background-position;
+        }
+
+        /* Pink variant with equally subtle gradient */
+        .heart.pink {
+            background: linear-gradient(
+                180deg,
+                rgba(255,170,196,0.20) 0%,
+                rgba(255,170,196,0.12) 100%
+            );
+            background-size: 200% 200%;
+        }
+
+        /* Larger, slower "depth" hearts are assigned via JS with inline size/duration and lower alpha */
+        .heart.big {
+            /* base gradient alpha is slightly lighter; JS will set 0.12 inlined */
+            filter: blur(0.3px);
+        }
+
+        /* Upward float with gentle drift */
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) translateX(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-55vh) translateX(var(--driftX, 14px)) rotate(var(--rotMid, 6deg));
+            }
+            100% {
+                transform: translateY(-115vh) translateX(calc(var(--driftX, 14px) * 2)) rotate(var(--rotEnd, 12deg));
+            }
+        }
+
+        /* Very subtle background shimmer of the gradient */
+        @keyframes shimmer {
+            0%   { background-position: 50% 0%; }
+            50%  { background-position: 50% 100%; }
+            100% { background-position: 50% 0%; }
+        }
+
+        /* Motion-safe: if user prefers reduced motion, show static hearts faintly */
+        @media (prefers-reduced-motion: reduce) {
+            .heart { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Decorative floating hearts layer (no functionality impact) -->
+    <div class="hearts-layer" aria-hidden="true"></div>
+
+    <h1>Will you be my Valentine? ❤️</h1>
+    
+<p style="font-size:12px; margin-top:-10px; color:#e783ce;">
+    You will see me crying on live video if you click no
+</p>
+
+
+    <div id="buttons">
+        <button id="yes" onclick="goYes()">Yes</button>
+        <button id="no">No</button>
+    </div>
+
+    <script>
+        /* ===========================
+           EXISTING FUNCTIONALITY
+           =========================== */
+        function goYes() {
+            window.location.href = "yes.html";
+        }
+
+        const noBtn = document.getElementById("no");
+
+        // Keep No button always inside the viewport while dodging
+        function moveNoButton(mouseX, mouseY) {
+            // enable dodging mode
+            noBtn.classList.add('dodging');
+
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            // Measure button size
+            const rect = noBtn.getBoundingClientRect();
+            const btnW = rect.width || 120;
+            const btnH = rect.height || 48;
+
+            // Padding from edges
+            const pad = 8;
+
+            // Minimum distance away from the mouse
+            const minDistance = Math.max(btnW, btnH) * 1.6;
+
+            // Generate a random, safe position within bounds
+            let left, top, tries = 0;
+            do {
+                left = Math.floor(pad + Math.random() * (vw - btnW - pad * 2));
+                top  = Math.floor(pad + Math.random() * (vh - btnH - pad * 2));
+
+                const dx = mouseX - (left + btnW / 2);
+                const dy = mouseY - (top  + btnH / 2);
+                var farEnough = (dx*dx + dy*dy) > (minDistance * minDistance);
+            } while (!farEnough && ++tries < 20);
+
+            // Final clamp as a safeguard
+            left = Math.max(pad, Math.min(left, vw - btnW - pad));
+            top  = Math.max(pad, Math.min(top,  vh - btnH - pad));
+
+            noBtn.style.left = left + "px";
+            noBtn.style.top  = top  + "px";
+        }
+
+        // Trigger dodge when hovering over No
+        let cooldown = false;
+        function dodge(e) {
+            if (cooldown) return;
+            cooldown = true;
+            setTimeout(() => cooldown = false, 120); // prevent strobe repositions
+            moveNoButton(e.clientX, e.clientY);
+        }
+
+        // Only dodge on hover-capable devices (desktop/laptop)
+        const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        if (supportsHover) {
+            noBtn.addEventListener("mouseenter", dodge);
+
+            // Optional: also dodge when the mouse comes near
+            document.addEventListener('mousemove', (e) => {
+                const r = noBtn.getBoundingClientRect();
+                const p = 40; // proximity distance
+                const near = (
+                    e.clientX > r.left - p && e.clientX < r.right + p &&
+                    e.clientY > r.top  - p && e.clientY < r.bottom + p
+                );
+                if (near) dodge(e);
+            });
+        }
+
+        // If window resizes or scrolls, keep the button within bounds
+        function keepInBounds() {
+            if (!noBtn.classList.contains('dodging')) return;
+
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const pad = 8;
+            const r = noBtn.getBoundingClientRect();
+
+            let left = r.left;
+            let top  = r.top;
+            let changed = false;
+
+            if (left < pad) { left = pad; changed = true; }
+            if (top  < pad) { top  = pad; changed = true; }
+            if (left > vw - r.width  - pad) { left = vw - r.width  - pad; changed = true; }
+            if (top  > vh - r.height - pad) { top = vh - r.height - pad; changed = true; }
+
+            if (changed) {
+                noBtn.style.left = left + 'px';
+                noBtn.style.top  = top  + 'px';
+            }
+        }
+        window.addEventListener('resize', keepInBounds);
+        window.addEventListener('scroll', keepInBounds);
+
+        /* ===========================
+           HEARTS GENERATOR (decor only)
+           - Gradient-filled ♥ with light shimmer
+           - A few larger, slower hearts for depth
+           =========================== */
+        
+(function floatingHearts() {
+    const layer = document.querySelector('.hearts-layer');
+    if (!layer) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ---- Tweak knobs ----
+    const HEARTS_PER_MIN = 120;    // steady-state density (try 100–150)
+    const MIN_SIZE = 18;           // px
+    const MAX_SIZE = 46;           // px
+    const MIN_DUR = 18;            // seconds
+    const MAX_DUR = 28;            // seconds
+    const PINK_RATIO = 0.6;        // % pink hearts
+    const BIG_CHANCE = 0.22;       // share of big/slow "depth" hearts
+    const BIG_MIN_SIZE = 52;       // px
+    const BIG_MAX_SIZE = 64;       // px
+    const BIG_MIN_DUR = 30;        // seconds
+    const BIG_MAX_DUR = 36;        // seconds
+    const MAX_ACTIVE = 70;         // cap DOM nodes
+
+    // ⬇️ Faster first impression
+    const INITIAL_SEED = 22;        // how many to add immediately
+    const START_MIDAIR_SHARE = 0.7; // 70% of initial hearts start mid-air
+    const PER_HEART_DELAY_MAX = 0.9; // lower than 1.5s to reduce wait
+
+    const intervalMs = Math.max(220, Math.floor(60000 / HEARTS_PER_MIN));
+
+    function addHeart({ staticOnly = false, startMidAir = false } = {}) {
+      if (layer.childElementCount >= MAX_ACTIVE) return;
+
+      const el = document.createElement('span');
+      const isPink = Math.random() < PINK_RATIO;
+      const isBig  = Math.random() < BIG_CHANCE;
+
+      el.className = 'heart' + (isPink ? ' pink' : '') + (isBig ? ' big' : '');
+      el.textContent = '♥';
+
+      // Size & placement
+      const size = isBig
+        ? Math.floor(Math.random() * (BIG_MAX_SIZE - BIG_MIN_SIZE + 1)) + BIG_MIN_SIZE
+        : Math.floor(Math.random() * (MAX_SIZE - MIN_SIZE + 1)) + MIN_SIZE;
+
+      const startLeftVW = Math.random() * 100; // 0..100vw
+      const driftX = (Math.random() * 44 - 22).toFixed(0) + 'px'; // -22..22px
+      const rotMid = (Math.random() * 12 - 6).toFixed(1) + 'deg';
+      const rotEnd = (Math.random() * 18 - 9).toFixed(1) + 'deg';
+
+      // Regular or big durations
+      const durSec = isBig
+        ? (Math.random() * (BIG_MAX_DUR - BIG_MIN_DUR) + BIG_MIN_DUR)
+        : (Math.random() * (MAX_DUR - MIN_DUR) + MIN_DUR);
+
+      const duration = durSec.toFixed(2) + 's';
+
+      // Very soft gradient alpha (big hearts slightly lighter)
+      const alphaTop = isBig ? 0.12 : (isPink ? 0.20 : 0.20);
+      const alphaBot = isBig ? 0.12 : (isPink ? 0.12 : 0.12);
+
+      const gradTop = isPink
+        ? `rgba(255,170,196,${alphaTop})`
+        : `rgba(255,255,255,${alphaTop})`;
+      const gradBot = isPink
+        ? `rgba(255,170,196,${alphaBot})`
+        : `rgba(255,255,255,${alphaBot})`;
+
+      el.style.left = `calc(${startLeftVW}vw - ${size / 2}px)`;
+      el.style.fontSize = size + 'px';
+      el.style.setProperty('--driftX', driftX);
+      el.style.setProperty('--rotMid', rotMid);
+      el.style.setProperty('--rotEnd', rotEnd);
+      el.style.background = `linear-gradient(180deg, ${gradTop} 0%, ${gradBot} 100%)`;
+      el.style.backgroundSize = '200% 200%';
+
+      // For reduced motion, just place some static hearts
+      if (reduceMotion) {
+        el.style.bottom = 'auto';
+        el.style.top = (Math.random() * 80).toFixed(0) + 'vh';
+        layer.appendChild(el);
+        return;
+      }
+
+      // Subtle shimmer
+      const shimmerDur = (Math.random() * 10 + 12).toFixed(2) + 's';
+
+      // Negative delay trick: start some hearts mid‑animation so they’re
+      // already visible when the page loads.
+      // delaySec is usually 0..PER_HEART_DELAY_MAX, but can be negative if startMidAir.
+      let delaySec = Math.random() * PER_HEART_DELAY_MAX; // 0..0.9s
+      if (startMidAir) {
+        // Start somewhere between 0% and 70% progressed
+        const progress = Math.random() * 0.7; // 0..0.7
+        delaySec = -progress * durSec;        // negative delay jumps to that progress
+      }
+
+      el.style.animation =
+        `floatUp ${duration} linear ${delaySec.toFixed(2)}s forwards, ` +
+        `shimmer ${shimmerDur} ease-in-out ${Math.max(0, delaySec).toFixed(2)}s infinite`;
+
+      el.addEventListener('animationend', () => el.remove());
+      layer.appendChild(el);
+    }
+
+    if (reduceMotion) {
+      console.info('[Valentine] Prefers-reduced-motion is ON; hearts are static.');
+      // Show a small scatter of static hearts
+      for (let i = 0; i < 10; i++) setTimeout(() => addHeart({ staticOnly: true }), i * 80);
+      return;
+    }
+
+    // Seed immediately on DOMContentLoaded (faster than window.onload)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', seedAndStart);
+    } else {
+      seedAndStart();
+    }
+
+    function seedAndStart() {
+      // Seed a larger batch on load, most starting mid-air (visible instantly)
+      for (let i = 0; i < INITIAL_SEED; i++) {
+        const startMidAir = Math.random() < START_MIDAIR_SHARE;
+        // Small staggering (looks more natural), but still fast
+        setTimeout(() => addHeart({ startMidAir }), i * 60);
+      }
+
+      // Continue at steady rate
+      const timer = setInterval(addHeart, intervalMs);
+
+      // Optional warm-up burst for the first few seconds
+      // setTimeout(() => { for (let i = 0; i < 8; i++) addHeart(); }, 1200);
+
+      // Clean up on page unload
+      window.addEventListener('beforeunload', () => clearInterval(timer));
+    }
+  })();
+
+    </script>
+
+</body>
+</html>
